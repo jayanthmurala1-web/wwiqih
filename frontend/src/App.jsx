@@ -160,12 +160,18 @@ export default function App() {
   const [tab, setTab] = useState("decision");
   const [cutoff, setCutoff] = useState(9);
   const [day, setDay] = useState("2026-01-15");
+  const [dark, setDark] = useState(() => { try { return localStorage.getItem("theme") === "dark"; } catch { return false; } });
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    try { localStorage.setItem("theme", dark ? "dark" : "light"); } catch {}
+  }, [dark]);
   const { data: days } = useApi("/api/days");
   const { data: acc, error } = useApi(`/api/accuracy?cutoff_hour=${cutoff}`);
   return (
     <>
       <header className="top">
-        <div><h1>Wind Forecast Desk</h1><p>GB day-ahead · January 2026</p></div>
+        <div className="head"><div><h1>Wind Forecast Desk</h1><p>GB day-ahead · January 2026</p></div>
+          <button className="theme" aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} onClick={() => setDark(!dark)}>{dark ? "☀" : "☾"}</button></div>
         <nav>
           {[["decision", "Plan a day"], ["accuracy", "How accurate"]].map(([k, n]) => (
             <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{n}</button>
