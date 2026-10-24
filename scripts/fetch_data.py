@@ -29,7 +29,8 @@ actual = {}
 for d in days(date(2026, 1, 2), date(2026, 2, 1)):
     n = d + timedelta(days=1)
     rows = get(f"{B}/FUELHH/stream?settlementDateFrom={d}&settlementDateTo={n}&fuelType=WIND&format=json")
-    actual.update({r["startTime"]: r["generation"] for r in rows if r["fuelType"] == "WIND"})
+    # the API range is inclusive of the end date, so drop anything past the last delivery day
+    actual.update({r["startTime"]: r["generation"] for r in rows if r["fuelType"] == "WIND" and r["startTime"] < "2026-02-02"})
 
 Path(__file__).parents[1].joinpath("data/wind.json").write_text(json.dumps({"forecast": forecast, "actual": actual}, separators=(",", ":")))
 print(len(forecast), "forecast rows,", len(actual), "actual rows")

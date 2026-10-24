@@ -53,27 +53,31 @@ function Controls({ days, day, setDay, cutoff, setCutoff }) {
         </label>
       )}
       <div className="field"><span>Decide by (day before, UK time)</span>
-        <div className="seg">{[8, 9, 10, 11].map((h) => (
-          <button key={h} className={cutoff === h ? "on" : ""} onClick={() => setCutoff(h)}>{String(h).padStart(2, "0")}:00</button>
+        <div className="seg">{["05:00", "08:00", "09:50", "12:00"].map((t) => (
+          <button key={t} aria-pressed={cutoff === t} className={cutoff === t ? "on" : ""} onClick={() => setCutoff(t)}>{t}</button>
         ))}</div>
+        <p className="sub" style={{ margin: "6px 0 0" }}>09:50 is the N2EX day-ahead auction gate closure. Others are what-if scenarios; each picks up a different forecast run (published 04:30, 07:30, 09:30, 11:30).</p>
       </div>
     </div>
   );
 }
 
-function Decision({ day, cutoff, bias }) {
-  const { data: d, error } = useApi(`/api/decision?day=${day}&cutoff_hour=${cutoff}`);
+function Decision({ day, cutoff }) {
+  const { data: d, error } = useApi(`/api/decision?day=${day}&cutoff=${cutoff}`);
   if (error) return <Failed />;
   if (!d) return <Skeleton />;
   const pts = d.points.map((p) => ({ ...p, label: p.t.slice(11, 16), band: p.low == null ? null : [p.low, p.high] }));
   const fs = pts.map((p) => p.forecast).filter((v) => v != null);
   const pub = d.forecast_published?.map((x) => x.slice(11, 16));
+  const h = d.history;
   return (
     <>
       <div className="card">
         <p className="headline">
-          Expect about <b>{gw(d.mean_forecast)}</b> of wind on average. In 9 of 10 hours the real output should land within <b>±{gw(d.p90_abs_error)}</b> of the forecast,
-          {bias > 0 ? <> and forecasts have run <em>{gw(bias)} too high</em> on average, so plan for a shortfall.</> : <> and forecasts have not run high on average.</>}
+          The forecast available at decision time averaged <b>{gw(d.mean_forecast)}</b> of wind.{" "}
+          {h.n ? <>Over the {h.days} {h.days === 1 ? "day" : "days"} already settled before this decision, 9 in 10 hours missed by less than <b>{gw(h.p90_abs)}</b>,
+            and forecasts ran <em>{gw(Math.abs(h.bias))} too {h.bias > 0 ? "high" : "low"}</em> on average{h.bias > 0 ? ", which points to a shortfall risk." : "."}</>
+            : <>There is no settled history in this period yet, so no error range is shown.</>}
         </p>
       </div>
       <div className="kpis">
@@ -94,7 +98,7 @@ function Decision({ day, cutoff, bias }) {
             <Line dataKey="actual" stroke="var(--act)" strokeWidth={2.5} dot={false} isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
-        <p className="sub" style={{ marginTop: 8 }}>The range is the January 90th-percentile miss, applied around each forecast. It is based on the same month, so treat it as a guide.</p>
+        <p className="sub" style={{ marginTop: 8 }}>Range = forecast ± the 90th-percentile miss from delivery days settled before the decision (no later data is used). Actual = mean of the two half-hour readings in each hour.</p>
       </div>
     </>
   );
@@ -106,14 +110,14 @@ function Accuracy({ a }) {
     <>
       <div className="card">
         <p className="headline">
-          Across January, day-ahead wind forecasts missed by <b>{gw(o.mae)}</b> in a typical hour, and ran <em>{gw(o.bias)} {o.bias > 0 ? "too high" : "too low"}</em> on average.
+          Looking back over all January decisions (deliveries 2 Jan – 1 Feb), the forecast available at the cut-off missed by <b>{gw(o.mae)}</b> in a typical hour, and ran <em>{gw(o.bias)} {o.bias > 0 ? "too high" : "too low"}</em> on average.
         </p>
       </div>
       <div className="kpis">
         <Kpi v={gw(o.mae)} label="Typical miss (mean absolute error)" />
         <Kpi v={gw(o.rmse)} label="Big misses weigh more (RMSE)" />
         <Kpi v={sgw(o.bias)} label="Bias: forecast minus actual" />
-        <Kpi v={o.mape.toFixed(0) + "%"} label="Miss as share of actual (MAPE)" />
+        <Kpi v={o.mape == null ? "–" : o.mape.toFixed(0) + "%"} label="Miss as share of actual (MAPE)" />
         <Kpi v={gw(o.p90_abs)} label="9 in 10 hours missed by less than" />
       </div>
       <div className="card">
@@ -143,7 +147,7 @@ function Accuracy({ a }) {
       </div>
       <div className="card">
         <h2>Does an earlier forecast do worse?</h2>
-        <p className="sub">Typical miss by how many hours before the target time the forecast was published.</p>
+        <p className="sub">Typical miss by hours between publish time and target time. Uses every published forecast, not just the one available at the cut-off, so it answers a different question from the charts above.</p>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={a.by_horizon} margin={{ left: -8, right: 8 }}>
             {axes("horizon_h", (h) => (h === 72 ? "72h+" : h + "h"), 0)}
@@ -158,7 +162,7 @@ function Accuracy({ a }) {
 
 export default function App() {
   const [tab, setTab] = useState("decision");
-  const [cutoff, setCutoff] = useState(9);
+  const [cutoff, setCutoff] = useState("09:50");
   const [day, setDay] = useState("2026-01-15");
   const [dark, setDark] = useState(() => { try { return localStorage.getItem("theme") === "dark"; } catch { return false; } });
   useEffect(() => {
@@ -166,7 +170,7 @@ export default function App() {
     try { localStorage.setItem("theme", dark ? "dark" : "light"); } catch {}
   }, [dark]);
   const { data: days } = useApi("/api/days");
-  const { data: acc, error } = useApi(`/api/accuracy?cutoff_hour=${cutoff}`);
+  const { data: acc, error } = useApi(`/api/accuracy?cutoff=${cutoff}`);
   return (
     <>
       <header className="top">
@@ -174,13 +178,13 @@ export default function App() {
           <button className="theme" aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} onClick={() => setDark(!dark)}>{dark ? "☀" : "☾"}</button></div>
         <nav>
           {[["decision", "Plan a day"], ["accuracy", "How accurate"]].map(([k, n]) => (
-            <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{n}</button>
+            <button key={k} aria-pressed={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{n}</button>
           ))}
         </nav>
       </header>
       <main>
         <Controls days={tab === "decision" ? days : null} day={day} setDay={setDay} cutoff={cutoff} setCutoff={setCutoff} />
-        {error ? <Failed /> : tab === "decision" ? <Decision day={day} cutoff={cutoff} bias={acc?.overall.bias ?? 0} /> : acc ? <Accuracy a={acc} /> : <Skeleton />}
+        {tab === "decision" ? <Decision day={day} cutoff={cutoff} /> : error ? <Failed /> : acc ? <Accuracy a={acc} /> : <Skeleton />}
       </main>
     </>
   );
