@@ -4,7 +4,7 @@ Helps a day-ahead power buyer see the latest wind forecast available at decision
 
 **AI use:** this project was built with Claude Code (AI assistant).
 
-**Live app:** _add Vercel URL here after deploying_
+**Live app:** https://wind-forecast-eight.vercel.app
 
 ## Layout
 

@@ -3,3 +3,5 @@ frontend/dist/
 __pycache__/
 .pytest_cache/
 .vercel/
+
+.vercel
