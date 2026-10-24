@@ -9,10 +9,10 @@
 body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
 button, select { font: inherit; color: inherit; }
 
-.top { padding: 20px 16px 4px; max-width: 960px; margin: 0 auto; }
+.top { padding: 20px 16px 4px; max-width: 1280px; margin: 0 auto; }
 .top h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
 .top p { margin: 2px 0 0; color: var(--mute); font-size: 14px; }
-main { max-width: 960px; margin: 0 auto; padding: 12px 16px 96px; }
+main { max-width: 1280px; margin: 0 auto; padding: 12px 16px 96px; }
 
 /* tabs: bottom bar on phones, inline on wider screens */
 nav { position: fixed; inset: auto 0 0 0; display: flex; background: var(--card); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); z-index: 5; }
